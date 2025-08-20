@@ -7,7 +7,9 @@ const shieldConfig = defineConfig({
    */
   csp: {
     enabled: false,
-    directives: {},
+    directives: {
+      defaultSrc: [`'self'`],
+    },
     reportOnly: false,
   },
 
@@ -16,7 +18,7 @@ const shieldConfig = defineConfig({
    * to learn more
    */
   csrf: {
-    enabled: true,
+    enabled: false, // desativando pois nao envio nenhum token csrf
     exceptRoutes: [],
     enableXsrfCookie: false,
     methods: ['POST', 'PUT', 'PATCH', 'DELETE'],
@@ -28,7 +30,7 @@ const shieldConfig = defineConfig({
    */
   xFrame: {
     enabled: true,
-    action: 'DENY',
+    action: 'SAMEORIGIN',
   },
 
   /**

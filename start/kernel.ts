@@ -28,6 +28,9 @@ server.use([
   () => import('@adonisjs/cors/cors_middleware'),
 ])
 
+// test shield
+router.use([() => import('@adonisjs/shield/shield_middleware')])
+
 /**
  * The router middleware stack runs middleware on all the HTTP
  * requests with a registered route.
