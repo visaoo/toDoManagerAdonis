@@ -1,16 +1,16 @@
-import AccessDeniedException from '#exceptions/access_denied_exception'
-import TaskNotFoundException from '#exceptions/task_not_found_exception'
-import Tarefa from '#models/tarefa'
 import { createTaskValidator, updateTaskValidator } from '#validators/tarefa'
+import TaskNotFoundException from '#exceptions/task_not_found_exception'
+import AccessDeniedException from '#exceptions/access_denied_exception'
 import type { HttpContext } from '@adonisjs/core/http'
-// import { Database } from '@adonisjs/lucid/database'
+import { AcaoEnum } from '../enums/AcaoEnum.js'
 import db from '@adonisjs/lucid/services/db'
+import LogTarefa from '#models/log_tarefa'
+import Tarefa from '#models/tarefa'
 
 export default class TarefasController {
   async index({ auth }: HttpContext) {
     const user = auth.user!
     await user.load('tarefas')
-    console.log('entrou aqui')
     return user
   }
 
@@ -20,6 +20,17 @@ export default class TarefasController {
       const user = auth.user!
 
       await db.transaction(async (trx) => {
+        LogTarefa.create(
+          {
+            acao: AcaoEnum.CREATED,
+            concluido: false,
+            titulo,
+            descricao,
+            usuarioId: user.id,
+            usuarioNome: user.nome?.toString(),
+          },
+          { client: trx }
+        )
         await user.related('tarefas').create({ titulo, descricao }, { client: trx })
       })
 
@@ -58,7 +69,19 @@ export default class TarefasController {
 
       db.transaction(async (trx) => {
         task.merge({ titulo, descricao, concluido })
-        console.log('mergiado')
+        LogTarefa.create(
+          {
+            acao: AcaoEnum.UPDATED,
+            titulo,
+            descricao,
+            concluido,
+            usuarioId: task.usuarioId,
+            usuarioNome: auth.user!.nome ?? '',
+          },
+          {
+            client: trx,
+          }
+        )
         await task.useTransaction(trx).save()
       })
 
@@ -70,7 +93,7 @@ export default class TarefasController {
       if (error instanceof TaskNotFoundException) {
         return response.status(error.status).json({ message: error.message, code: error.code })
       }
-      console.error(error)
+      return response.status(500).json({ message: 'Erro interno do servidor'})
     }
   }
 
@@ -82,6 +105,17 @@ export default class TarefasController {
       if (auth.user!.id !== task.usuarioId) throw new AccessDeniedException()
 
       await db.transaction(async (trx) => {
+        LogTarefa.create(
+          {
+            acao: AcaoEnum.DELETED,
+            titulo: task.titulo,
+            descricao: task.descricao,
+            concluido: task.concluido,
+            usuarioId: task.usuarioId,
+            usuarioNome: auth.user!.nome ?? '',
+          },
+          { client: trx }
+        )
         await task.useTransaction(trx).delete()
       })
 
