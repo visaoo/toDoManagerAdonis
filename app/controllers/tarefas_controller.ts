@@ -20,7 +20,8 @@ export default class TarefasController {
       const user = auth.user!
 
       await db.transaction(async (trx) => {
-        LogTarefa.create(
+        await user.related('tarefas').create({ titulo, descricao }, { client: trx })
+        await LogTarefa.create(
           {
             acao: AcaoEnum.CREATED,
             concluido: false,
@@ -31,7 +32,6 @@ export default class TarefasController {
           },
           { client: trx }
         )
-        await user.related('tarefas').create({ titulo, descricao }, { client: trx })
       })
 
       return { titulo, descricao }
@@ -67,9 +67,10 @@ export default class TarefasController {
       if (!task) throw new TaskNotFoundException()
       if (auth.user!.id !== task.usuarioId) throw new AccessDeniedException()
 
-      db.transaction(async (trx) => {
+      await db.transaction(async (trx) => {
         task.merge({ titulo, descricao, concluido })
-        LogTarefa.create(
+        await task.useTransaction(trx).save()
+        await LogTarefa.create(
           {
             acao: AcaoEnum.UPDATED,
             titulo,
@@ -82,7 +83,6 @@ export default class TarefasController {
             client: trx,
           }
         )
-        await task.useTransaction(trx).save()
       })
 
       return response.status(200).json(task)
@@ -93,7 +93,7 @@ export default class TarefasController {
       if (error instanceof TaskNotFoundException) {
         return response.status(error.status).json({ message: error.message, code: error.code })
       }
-      return response.status(500).json({ message: 'Erro interno do servidor'})
+      return response.status(500).json({ message: 'Erro interno do servidor' })
     }
   }
 
@@ -105,7 +105,8 @@ export default class TarefasController {
       if (auth.user!.id !== task.usuarioId) throw new AccessDeniedException()
 
       await db.transaction(async (trx) => {
-        LogTarefa.create(
+        await task.useTransaction(trx).delete()
+        await LogTarefa.create(
           {
             acao: AcaoEnum.DELETED,
             titulo: task.titulo,
@@ -116,7 +117,6 @@ export default class TarefasController {
           },
           { client: trx }
         )
-        await task.useTransaction(trx).delete()
       })
 
       return response.status(200).json({ message: 'Tarefa deletada com sucesso.' })
